@@ -1,0 +1,199 @@
+{
+  "AWSTemplateFormatVersion" : "2010-09-09",
+
+  "Description" : "Create a basic VPC, Public Subnet, a web server with 2 users, restricted ssh access to users IP addresses, https open to the world.",
+
+  "Parameters" : {},
+
+  "Mappings" : {},
+
+  "Resources" : {
+
+    "VPC" : {
+      "Type" : "AWS::EC2::VPC",
+      "Properties" : {
+        "CidrBlock" : "172.32.0.0/16",
+        "Tags" : [ {"Key" : "Application", "Value" : { "Ref" : "AWS::StackId"} }]
+      }
+    },
+
+    "Subnet" : {
+      "Type" : "AWS::EC2::Subnet",
+      "Properties" : {
+        "VpcId" : { "Ref" : "VPC" },
+        "CidrBlock" : "172.32.1.0/24",
+        "Tags" : [ {"Key" : "Application", "Value" : { "Ref" : "AWS::StackId"} } ]
+      }
+    },
+
+    "InternetGateway" : {
+      "Type" : "AWS::EC2::InternetGateway",
+      "Properties" : {
+        "Tags" : [ {"Key" : "Application", "Value" : { "Ref" : "AWS::StackId"} } ]
+      }
+    },
+
+    "AttachGateway" : {
+       "Type" : "AWS::EC2::VPCGatewayAttachment",
+       "Properties" : {
+         "VpcId" : { "Ref" : "VPC" },
+         "InternetGatewayId" : { "Ref" : "InternetGateway" }
+       }
+    },
+
+    "RouteTable" : {
+      "Type" : "AWS::EC2::RouteTable",
+      "Properties" : {
+        "VpcId" : {"Ref" : "VPC"},
+        "Tags" : [ {"Key" : "Application", "Value" : { "Ref" : "AWS::StackId"} } ]
+      }
+    },
+
+    "Route" : {
+      "Type" : "AWS::EC2::Route",
+      "DependsOn" : "AttachGateway",
+      "Properties" : {
+        "RouteTableId" : { "Ref" : "RouteTable" },
+        "DestinationCidrBlock" : "0.0.0.0/0",
+        "GatewayId" : { "Ref" : "InternetGateway" }
+      }
+    },
+
+    "SubnetRouteTableAssociation" : {
+      "Type" : "AWS::EC2::SubnetRouteTableAssociation",
+      "Properties" : {
+        "SubnetId" : { "Ref" : "Subnet" },
+        "RouteTableId" : { "Ref" : "RouteTable" }
+      }
+    },
+
+
+    "IPAddress" : {
+      "Type" : "AWS::EC2::EIP",
+      "DependsOn" : "AttachGateway",
+      "Properties" : {
+        "Domain" : "vpc",
+        "InstanceId" : { "Ref" : "WebServerInstance" }
+      }
+    },
+
+    "InstanceSecurityGroup" : {
+      "Type" : "AWS::EC2::SecurityGroup",
+      "Properties" : {
+        "VpcId" : { "Ref" : "VPC" },
+        "GroupDescription" : "Enable SSH access via port 22",
+        "SecurityGroupIngress" : [
+          {"IpProtocol" : "tcp", "FromPort" : "22", "ToPort" : "22", "CidrIp" : "73.54.243.247/32"},
+          {"IpProtocol" : "tcp", "FromPort" : "22", "ToPort" : "22", "CidrIp" : "176.33.122.64/32"},
+          {"IpProtocol" : "tcp", "FromPort" : "22", "ToPort" : "22", "CidrIp" : "204.13.56.3/32"},
+          {"IpProtocol" : "tcp", "FromPort" : "443", "ToPort" : "443", "CidrIp" : "0.0.0.0/0"}
+         ]
+      }
+    },
+
+
+    "WebServerInstance" : {
+      "Type" : "AWS::EC2::Instance",
+      "Properties" : {
+        "ImageId" : "ami-f63b1193",
+        "InstanceType" : "t2.micro",
+        "KeyName" : "jglasscfnkey" ,
+        "Tags" : [ { "Key" : "Application", "Value" : { "Ref" : "AWS::StackId" } } ],
+        "NetworkInterfaces" : [{
+          "GroupSet"                 : [{ "Ref" : "InstanceSecurityGroup" }],
+          "AssociatePublicIpAddress" : "true",
+          "DeviceIndex"              : "0",
+          "DeleteOnTermination"      : "true",
+          "SubnetId"                 : { "Ref" : "Subnet" }
+        }],
+        "UserData"       : { "Fn::Base64" : { "Fn::Join" : ["", [
+             "#!/bin/bash -xe\n",
+             "yum update -y\n",
+             "yum install -y httpd mod_ssl\n",
+             "service httpd start\n",
+             "chkconfig httpd on\n",
+             "groupadd www\n",
+             "usermod -a -G www ec2-user\n",
+             "sed -i s/^PasswordAuthentication/#PasswordAuthentication/g /etc/ssh/sshd_config\n",
+             "service sshd restart\n",
+             "adduser bob -G www\n",
+             "echo '3an7BxZT$Xtf#3B\n3an7BxZT$Xtf#3B\n' | passwd bob\n",
+
+             "adduser alice -G www\n",
+             "echo 'br6@KnfYkSEgzh^R\nbr6@KnfYkSEgzh^R\n' | passwd alice\n",
+
+             "wget https://jonathanglass.cloud/files/website.zip\n",
+             "unzip website.zip -d /var/www/html/\n",
+             "rm website.zip\n",
+             "chown -R root:www /var/www\n",
+             "chmod -R 2775 /var/www\n",
+
+             "yum update -y aws-cfn-bootstrap\n",
+
+             "/opt/aws/bin/cfn-init -v ",
+             "         --stack ", { "Ref" : "AWS::StackName" },
+             "         --resource WebServerInstance ",
+             "         --region ", { "Ref" : "AWS::Region" }, "\n",
+
+             "/opt/aws/bin/cfn-signal -e $? ",
+             "         --stack ", { "Ref" : "AWS::StackName" },
+             "         --resource WebServerInstance ",
+             "         --region ", { "Ref" : "AWS::Region" }, "\n"
+        ]]}}
+      },
+      "DependsOn" : "AttachGateway",
+      "Metadata" : {
+        "Comment" : "Install a simple application",
+        "AWS::CloudFormation::Init" : {
+          "config" : {
+            "packages" : {
+              "yum" : "httpd"
+              }
+            },
+
+              "/etc/cfn/cfn-hup.conf" : {
+                "content" : { "Fn::Join" : ["", [
+                  "[main]\n",
+                  "stack=", { "Ref" : "AWS::StackId" }, "\n",
+                  "region=", { "Ref" : "AWS::Region" }, "\n"
+                ]]},
+                "mode"    : "000400",
+                "owner"   : "root",
+                "group"   : "root"
+              },
+
+              "/etc/cfn/hooks.d/cfn-auto-reloader.conf" : {
+                "content": { "Fn::Join" : ["", [
+                  "[cfn-auto-reloader-hook]\n",
+                  "triggers=post.update\n",
+                  "path=Resources.WebServerInstance.Metadata.AWS::CloudFormation::Init\n",
+                  "action=/opt/aws/bin/cfn-init -v ",
+                  "         --stack ", { "Ref" : "AWS::StackName" },
+                  "         --resource WebServerInstance ",
+                  "         --region ", { "Ref" : "AWS::Region" }, "\n",
+                  "runas=root\n"
+                ]]},
+                "mode"    : "000400",
+                "owner"   : "root",
+                "group"   : "root"
+              }
+            },
+
+            "services" : {
+              "sysvinit" : {
+                "httpd"    : { "enabled" : "true", "ensureRunning" : "true" },
+                "cfn-hup" : { "enabled" : "true", "ensureRunning" : "true",
+                              "files" : ["/etc/cfn/cfn-hup.conf", "/etc/cfn/hooks.d/cfn-auto-reloader.conf"]}
+              }
+            }
+          }
+        }
+      },
+
+  "Outputs" : {
+    "URL" : {
+      "Value" : { "Fn::Join" : [ "", ["https://", { "Fn::GetAtt" : ["WebServerInstance", "PublicIp"] }]]},
+      "Description" : "Newly created application URL"
+    }
+  }
+}
