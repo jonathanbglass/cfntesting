@@ -83,7 +83,6 @@
         "VpcId" : { "Ref" : "VPC" },
         "GroupDescription" : "Enable SSH access via port 22",
         "SecurityGroupIngress" : [
-          {"IpProtocol" : "tcp", "FromPort" : "22", "ToPort" : "22", "CidrIp" : "73.54.243.247/32"},
           {"IpProtocol" : "tcp", "FromPort" : "22", "ToPort" : "22", "CidrIp" : "176.33.122.64/32"},
           {"IpProtocol" : "tcp", "FromPort" : "22", "ToPort" : "22", "CidrIp" : "204.13.56.3/32"},
           {"IpProtocol" : "tcp", "FromPort" : "443", "ToPort" : "443", "CidrIp" : "0.0.0.0/0"}
@@ -127,7 +126,8 @@
              "rm website.zip\n",
              "chown -R root:www /var/www\n",
              "chmod -R 2775 /var/www\n",
-
+             "chown -R root:www /var/log/httpd\n",
+             "chmod -R 2775 /var/log/httpd\n",
              "yum update -y aws-cfn-bootstrap\n",
 
              "/opt/aws/bin/cfn-init -v ",

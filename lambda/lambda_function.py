@@ -2,8 +2,6 @@ import boto3
 import json
 from datetime import datetime, timezone
 
-
-
 def delete_user(USERNAME, iam):
     # Remove the keys
     disable_user_profile(USERNAME, iam)
@@ -94,6 +92,7 @@ def lambda_handler(event, context):
     # handle "IsTruncated" variable in the future
     # checking for passsword last used
     for user in response['Users']:
+        print ("Found User: ", user['UserName'])
         if 'PasswordLastUsed' in user:
             td=abs((datetime.now()-user['PasswordLastUsed']).days)
             if td > 180:
@@ -102,8 +101,9 @@ def lambda_handler(event, context):
             elif td > 90:
                 disableresponse = disable_user_profile(['UserName'],iam)
                 print ("Disabled Account: ", user['UserName'], ", Disable Response: ", disableresponse)
-    return
+    return True
 
+'''
 # for running this manually for cfntesting
 USERNAME='steve'
 iam = boto3.client('iam')
@@ -120,3 +120,4 @@ for user in response['Users']:
     if USERNAME in user['UserName']:
         delete_user(user['UserName'],iam)
 exit()
+'''

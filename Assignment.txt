@@ -1,0 +1,22 @@
+DevSecOps	Assignment
+Complete	both	tasks	below.	Provide	evidence	of	implementation	(any	code/scripts	written),
+and	a	step-by-step	explanation	of	your	process. Please	also	indicate	the	amount	of	time	spent
+on	each	of	the	2	items.
+
+1. Create	a	CloudFormation template	that	will
+  create	an	EC2	instance and	all	required dependencies in a	region	
+  would	allow	only	Alice	and	Bob	to	modify	or	login	to,	and
+  only	from	their	home	IP	addresses.
+  Alice’s	IP	is	204.13.56.3	and
+  Bob’s	IP	is	176.33.122.64.
+  Alice	and	Bob	will	only	be	using	SSH	to	communicate	with	the	host,	and
+    the	host	is	only	being	used	for	secure	web	hosting.
+a. Template	can	be	submitted	in	JSON	or	YAML	formats.
+b. You	may	only	use	SSH to	communicate	with	the	hosts.
+c. Any	web	content	being	served	from	hosts	MUST	be secure	content.
+
+2. Create	a	Lambda	function	that	could	be	used	for	compliance	auditing,	and	would
+automatically	review	IAM	User	logins	for	corporate	compliance.	Lambda	should	be	able
+to	detect	and	automatically	disable	accounts	not	used	or	logged	into for	90	days,	and
+delete	accounts	not	used	or	logged	into for	180	days.	Please	use	Java	or	Python	as	your
+development	language.
