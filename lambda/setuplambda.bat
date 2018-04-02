@@ -1,0 +1,4 @@
+call aws s3 cp lambda_users.zip s3://jonathanglass.cloud/files/
+call aws lambda create-function --region us-east-1 --function-name IamCleanUp --code S3Bucket=jonathanglass.cloud,S3Key=files/lambda_users.zip --role arn:aws:iam::873168614656:role/LambdaIAMFullAccess --handler lambda_function.handler --runtime python3.6
+call aws events put-rule --schedule-expression "cron(0 12 * * ? *)" --name IamCleanUpRule
+call aws lambda add-permission --statement-id IamCleanUpSId --action lambda:InvokeFunction --principal events.amazonaws.com --source-arn arn:aws:events:us-east-1:873168614656:rule/IamCleanUpRule --function-name IamCleanUp --region us-east-1
